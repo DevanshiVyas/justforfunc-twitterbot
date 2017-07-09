@@ -3,8 +3,6 @@ package main
 import (
 	"net/url"
 
-	"fmt"
-
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/sirupsen/logrus"
 )
@@ -22,7 +20,7 @@ func main() {
 	api := anaconda.NewTwitterApi(accessToken, accessTokenSecret)
 
 	stream := api.PublicStreamFilter(url.Values{
-		"track": []string{"#love"},
+		"track": []string{"#golang"},
 	})
 
 	defer stream.Stop()
@@ -32,6 +30,16 @@ func main() {
 			logrus.Warningf("encountered unexpected value of type %T \n", v)
 			continue
 		}
-		fmt.Printf("%s \n", t.Text)
+
+		if t.RetweetedStatus != nil {
+			continue
+		}
+
+		_, err := api.Retweet(t.Id, false)
+		if err != nil {
+			logrus.Errorf("Could not retweet %d , with error %v", t.Id, err)
+			continue
+		}
+		logrus.Infof("Retweeted %d", t.Id)
 	}
 }
