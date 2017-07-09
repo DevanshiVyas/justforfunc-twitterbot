@@ -3,21 +3,34 @@ package main
 import (
 	"net/url"
 
+	"os"
+
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	consumerKey       = "WuWtVBneDIFi8PetwWejZjw5C"
-	consumerSecret    = "tCV2bjdlvFNowl8e9mwMYb4UrNj7LjXqpltERZZn3JZSOLfrsM"
-	accessToken       = "705491955774595072-pIWKpOYm7iK8fzhqqLtv0h5ZlPNUl18"
-	accessTokenSecret = "BYaoKxaXl60rdcO98XpXzUKDmj6fefJQGrvDTdxKkqXuk"
+var (
+	consumerKey       = getenv("TWITTER_CONSUMER_KEY")
+	consumerSecret    = getenv("TWITTER_CONSUMER_SECRET")
+	accessToken       = getenv("TWITTER_ACCESS_TOKEN")
+	accessTokenSecret = getenv("TWITTER_ACCESS_TOKEN_SECRET")
 )
+
+func getenv(name string) string {
+	v := os.Getenv(name)
+	if v == "" {
+		panic("could not get value for" + name)
+	}
+	return v
+}
 
 func main() {
 	anaconda.SetConsumerKey(consumerKey)
 	anaconda.SetConsumerSecret(consumerSecret)
 	api := anaconda.NewTwitterApi(accessToken, accessTokenSecret)
+
+	log := &logger{logrus.New()}
+	api.SetLogger(log)
 
 	stream := api.PublicStreamFilter(url.Values{
 		"track": []string{"#golang"},
@@ -27,7 +40,7 @@ func main() {
 	for v := range stream.C {
 		t, ok := v.(anaconda.Tweet)
 		if !ok {
-			logrus.Warningf("encountered unexpected value of type %T \n", v)
+			log.Warningf("encountered unexpected value of type %T \n", v)
 			continue
 		}
 
@@ -37,9 +50,29 @@ func main() {
 
 		_, err := api.Retweet(t.Id, false)
 		if err != nil {
-			logrus.Errorf("Could not retweet %d , with error %v", t.Id, err)
+			log.Errorf("Could not retweet %d , with error %v", t.Id, err)
 			continue
 		}
-		logrus.Infof("Retweeted %d", t.Id)
+		log.Infof("Retweeted %d", t.Id)
 	}
+}
+
+type logger struct {
+	*logrus.Logger
+}
+
+func (log *logger) Critical(args ...interface{}) {
+	log.Error(args...)
+}
+
+func (log *logger) Criticalf(s string, args ...interface{}) {
+	log.Errorf(s, args...)
+}
+
+func (log *logger) Notice(args ...interface{}) {
+	log.Info(args...)
+}
+
+func (log *logger) Noticef(s string, args ...interface{}) {
+	log.Infof(s, args...)
 }
