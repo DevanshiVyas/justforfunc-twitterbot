@@ -1,9 +1,12 @@
 package main
 
 import (
+	"net/url"
+
 	"fmt"
 
 	"github.com/ChimeraCoder/anaconda"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -18,8 +21,17 @@ func main() {
 	anaconda.SetConsumerSecret(consumerSecret)
 	api := anaconda.NewTwitterApi(accessToken, accessTokenSecret)
 
-	res, _ := api.GetSearch("golang", nil)
-	for _, tweet := range res.Statuses {
-		fmt.Print(tweet.Text)
+	stream := api.PublicStreamFilter(url.Values{
+		"track": []string{"#love"},
+	})
+
+	defer stream.Stop()
+	for v := range stream.C {
+		t, ok := v.(anaconda.Tweet)
+		if !ok {
+			logrus.Warningf("encountered unexpected value of type %T \n", v)
+			continue
+		}
+		fmt.Printf("%s \n", t.Text)
 	}
 }
